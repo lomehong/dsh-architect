@@ -1,0 +1,52 @@
+{
+  "name": "@dsh-extra/dsh-architect",
+  "version": "0.1.0",
+  "description": "架构师 Agent 工具化：需求准入（六项覆盖）、方案覆盖检查与评分（六维度+五问）结构化模型工具——数字分身套件架构师职能的确定性检查器",
+  "license": "MIT",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./coverage": {
+      "types": "./lib/types/coverage.d.ts",
+      "default": "./lib/coverage.js"
+    },
+    "./digest": {
+      "types": "./lib/types/digest.d.ts",
+      "default": "./lib/digest.js"
+    },
+    "./tools": {
+      "types": "./lib/types/tools.d.ts",
+      "default": "./lib/tools.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/**",
+    "cordis.patch.yml"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "cordis.patch.yml"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b tsconfig.json",
+    "test": "vitest run",
+    "typecheck": "tsc -b tsconfig.json --noEmit"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1-rc.4"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "^4.0.2",
+    "@types/node": "^22.20.1",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
+  }
+}
