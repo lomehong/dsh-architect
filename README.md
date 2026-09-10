@@ -33,6 +33,20 @@ dsh plugin --profile <name> add
 - 因此不存在对兄弟插件的运行时耦合；依赖矩阵申报：提供 `dsh-architect` 服务与
   `tool-architect` 工具入口，套件增强消费方向为空。
 
+## oh-my-pi 集成（双宿主，决策 D9）
+
+同一组纯函数同时服务 dsh 与 [oh-my-pi](https://github.com/can1357/oh-my-pi)（omp）：
+`./omp` 导出 omp CustomTool 适配器（`architect_digest` / `architect_design` / `architect_review`，
+工具名、参数与语义与 dsh 版完全一致；`loadMode: 'essential'` 常驻；zod builder 缺失时降级为
+空数组并告警，不炸宿主加载）。
+
+安装（omp 侧）：
+
+- 把 `lib/omp.js` 构建产物（或仓库内 `src/omp.ts`——omp 基于 Bun，可直接加载 TS）路径
+  配置进 omp 工具发现：`~/.omp/agent/tools`、项目 `.omp/tools`，或 settings 的工具配置路径；
+- SKILL 侧挂载（`.omp/skills/`、`.agents/skills/`、`.claude/skills/`）与宿主判别见
+  digital-architect 仓 `adapters/oh-my-pi.md`。
+
 ## 测试
 
 ```sh

@@ -23,6 +23,10 @@
       "types": "./lib/types/tools.d.ts",
       "default": "./lib/tools.js"
     },
+    "./omp": {
+      "types": "./lib/types/omp.d.ts",
+      "default": "./lib/omp.js"
+    },
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json"
   },
