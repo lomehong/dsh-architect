@@ -1,7 +1,7 @@
 {
   "name": "@dsh-extra/dsh-architect",
-  "version": "0.1.0",
-  "description": "架构师 Agent 工具化：需求准入（六项覆盖）、方案覆盖检查与评分（六维度+五问）结构化模型工具——数字分身套件架构师职能的确定性检查器",
+  "version": "0.2.0",
+  "description": "架构师 Agent 工具化：需求准入（六项覆盖）、方案覆盖检查与评分（六维度+五问）模型工具 + 知识库结构校验（knowledge-lint）——数字分身套件架构师职能的确定性检查器",
   "license": "MIT",
   "type": "module",
   "main": "lib/index.js",
@@ -18,6 +18,10 @@
     "./digest": {
       "types": "./lib/types/digest.d.ts",
       "default": "./lib/digest.js"
+    },
+    "./lint": {
+      "types": "./lib/types/lint.d.ts",
+      "default": "./lib/lint.js"
     },
     "./tools": {
       "types": "./lib/types/tools.d.ts",
