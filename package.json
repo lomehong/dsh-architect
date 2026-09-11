@@ -23,6 +23,10 @@
       "types": "./lib/types/lint.d.ts",
       "default": "./lib/lint.js"
     },
+    "./kbcollect": {
+      "types": "./lib/types/kbcollect.d.ts",
+      "default": "./lib/kbcollect.js"
+    },
     "./tools": {
       "types": "./lib/types/tools.d.ts",
       "default": "./lib/tools.js"

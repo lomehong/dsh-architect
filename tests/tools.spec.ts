@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { readFileSync } from 'node:node:fs'
-import { fileURLToPath } from 'node:node:url'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { apply as toolsApply, name as toolsName } from '../src/tools.ts'
 import { apply as indexApply } from '../src/index.ts'
 
@@ -28,7 +28,7 @@ const tools = (): Record<string, CapturedTool> => Object.fromEntries(capture().m
 describe('tools 入口注册形态', () => {
   it('注册 architect_digest / architect_design / architect_review', () => {
     const registered = capture()
-    expect(registered.map(t => t.name)).toEqual(['architect_digest', 'architect_design', 'architect_review'])
+    expect(registered.map(t => t.name)).toEqual(['architect_digest', 'architect_design', 'architect_review', 'architect_lint'])
     expect(toolsName).toBe('tool-architect')
     for (const t of registered) {
       expect(t.parameters.type).toBe('object')

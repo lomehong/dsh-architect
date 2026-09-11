@@ -26,7 +26,7 @@ function apiWith(partial: Partial<OmpApi>): OmpApi {
 describe('omp 工厂：zod builder 解析与降级', () => {
   it('api.zod 命中：注册三个工具（名字与 dsh 版一致）', () => {
     const tools = createTools(apiWith({ zod: stubZod() }))
-    expect(tools.map(t => t.name)).toEqual(['architect_digest', 'architect_design', 'architect_review'])
+    expect(tools.map(t => t.name)).toEqual(['architect_digest', 'architect_design', 'architect_review', 'architect_lint'])
     for (const t of tools) {
       expect(t.loadMode).toBe('essential')
       expect(t.parameters).toBeDefined()
@@ -37,7 +37,7 @@ describe('omp 工厂：zod builder 解析与降级', () => {
 
   it('回退链：api.pi.zod 命中', () => {
     const tools = createTools(apiWith({ pi: { zod: stubZod() } }))
-    expect(tools).toHaveLength(3)
+    expect(tools).toHaveLength(4)
   })
 
   it('builder 全缺：factory 降级为空数组并告警，不抛错', () => {

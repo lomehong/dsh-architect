@@ -16,6 +16,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { checkDesign, renderReviewSkeleton, type CoverageResult } from './coverage.ts'
 import { checkDigest, type DigestInput } from './digest.ts'
+import { lintKnowledgeAt } from './kbcollect.ts'
 
 interface JsonSchemaLike {
   type: 'object'
@@ -232,13 +233,67 @@ function registerReview(tools: ToolsLike): void {
   })
 }
 
+/** ── architect_lint：知识库结构校验（R1~R9）── */
+function registerLint(tools: ToolsLike): void {
+  tools.register({
+    name: 'architect_lint',
+    description:
+      '知识库机械校验（knowledge-lint R1~R9）：校验 architect-knowledge 的结构与纪律' +
+      '（必填字段/状态枚举/队列与索引一致/ref 存在性/**设备路径禁止入库**）。' +
+      '落在知识库前与提交前必跑；**pass=false 时不得提交**（错误退出码以 CI 为准，本工具返回结构化结果）。',
+    parameters: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        kb_root: { type: 'string', description: '知识库根（默认 architect-knowledge；容器内为 /opt/architect/architect-knowledge）' },
+      },
+    },
+    output: {
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          pass: { type: 'boolean' },
+          root: { type: 'string' },
+          entries: { type: 'number' },
+          confirmed: { type: 'number' },
+          pending: { type: 'number' },
+          errors_text: { type: 'string', description: '错误清单（每行一条，含规则号与路径）' },
+          warnings_text: { type: 'string' },
+        },
+      },
+      render: (_args, value) => {
+        const v = value as { pass?: boolean; root?: string; entries?: number; confirmed?: number; pending?: number; errors_text?: string }
+        const head = v.pass === true
+          ? `✅ 知识库校验通过：${v.entries} 条（已确认 ${v.confirmed} / 待审核 ${v.pending}）`
+          : `⛔ 知识库校验失败：未通过 R1~R9 检查`
+        return [{ type: 'text', text: [head, `root=${v.root ?? ''}`, v.errors_text ?? '', '修复后重跑；error 非空期间不得提交（CI 亦阻断）。'].filter(Boolean).join('\n') }]
+      },
+    },
+    execute: async args => {
+      const a = (args ?? {}) as Record<string, unknown>
+      const kbRoot = str(a.kb_root).trim() !== '' ? str(a.kb_root).trim() : 'architect-knowledge'
+      const r = lintKnowledgeAt(kbRoot)
+      return {
+        pass: r.pass,
+        root: r.root,
+        entries: r.stats.entries,
+        confirmed: r.stats.confirmed,
+        pending: r.stats.pending,
+        errors_text: r.errors.map(i => `[${i.rule}] ${i.path}：${i.message}`).join('\n'),
+        warnings_text: r.warnings.map(i => `[${i.rule}] ${i.path}：${i.message}`).join('\n'),
+      }
+    },
+  })
+}
+
 export const name = 'tool-architect'
 export const inject = ['tools']
 export function apply(ctx: Context): void {
   const host = ctx as unknown as { tools?: ToolsLike; get?(name: string): unknown }
   const tools = host.tools ?? (host.get?.('tools') as ToolsLike | undefined)
   if (tools === undefined || typeof tools.register !== 'function') return
-  const registerAll = [registerDigest, registerDesign, registerReview]
+  const registerAll = [registerDigest, registerDesign, registerReview, registerLint]
   for (const register of registerAll) {
     try {
       register(tools)

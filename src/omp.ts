@@ -19,6 +19,7 @@
  */
 import { checkDesign, renderReviewSkeleton, type CoverageResult } from './coverage.ts'
 import { checkDigest, type DigestInput } from './digest.ts'
+import { lintKnowledgeAt } from './kbcollect.ts'
 
 /** zod 兼容 builder 的最小面（omp 注入 pi.zod / arktype / typebox 之一）。 */
 interface OptionalLike {
@@ -220,10 +221,52 @@ function reviewTool(z: ZodLike): OmpCustomTool {
   }
 }
 
+/** ── architect_lint：知识库结构校验（R1~R9，与 dsh 同名同语义）── */
+function lintTool(z: ZodLike): OmpCustomTool {
+  return {
+    name: 'architect_lint',
+    label: '架构师知识库校验',
+    description:
+      '知识库机械校验（knowledge-lint R1~R9）：必填字段/状态枚举/队列与索引一致/ref 存在性/**设备路径禁止入库**。' +
+      '落在知识库前与提交前必跑。omp 无插件强制面 → 本工具即纪律入口；也可 bash 兜底：' +
+      '`node /opt/architect/dsh-architect/scripts/lint-knowledge.mjs /opt/architect/architect-knowledge`。',
+    loadMode: 'essential',
+    parameters: z.object({
+      kb_root: z.string().optional(),
+    }),
+    execute: async (_toolCallId, params) => {
+      const a = (params ?? {}) as Record<string, unknown>
+      const kbRoot = str(a.kb_root).trim() !== '' ? str(a.kb_root).trim() : 'architect-knowledge'
+      const r = lintKnowledgeAt(kbRoot)
+      const head = r.pass
+        ? `✅ 知识库校验通过：${r.stats.entries} 条（已确认 ${r.stats.confirmed} / 待审核 ${r.stats.pending}）`
+        : `⛔ 知识库校验失败：错误 ${r.errors.length} 处`
+      const text = [
+        head,
+        `root=${r.root}`,
+        ...r.errors.map(i => `⛔ [${i.rule}] ${i.path}：${i.message}`),
+        r.errors.length > 0 ? '修复后重跑；error 非空期间不得提交。' : '',
+      ].filter(Boolean).join('\n')
+      return {
+        content: [{ type: 'text', text }],
+        details: {
+          pass: r.pass,
+          root: r.root,
+          entries: r.stats.entries,
+          confirmed: r.stats.confirmed,
+          pending: r.stats.pending,
+          errors: r.errors,
+          warnings: r.warnings,
+        },
+      }
+    },
+  }
+}
+
 /** 注册三个工具（供测试与高级宿主直接调用；builder 缺失抛错）。 */
 export function createTools(api: OmpApi): OmpCustomTool[] {
   const z = resolveZod(api)
-  return [digestTool(z), designTool(z), reviewTool(z)]
+  return [digestTool(z), designTool(z), reviewTool(z), lintTool(z)]
 }
 
 /** omp CustomToolFactory：模块默认导出。builder 缺失降级为空数组 + 告警（不炸宿主加载）。 */
