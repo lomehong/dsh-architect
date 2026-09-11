@@ -37,6 +37,7 @@
   },
   "files": [
     "lib/**",
+    "presets/**",
     "cordis.patch.yml"
   ],
   "dsh": {

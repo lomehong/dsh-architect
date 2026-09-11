@@ -1,0 +1,125 @@
+# The `architect` agent preset: an architect Agent instance on a dsh host
+# (owner-ruled 2026-09-11: dsh/omp are host TYPES, not agents; each instance
+# carries its own 御符 token — mounting is per-instance and never shared with
+# the digital-twin avatar). The persona row is a minimal identity statement;
+# engineering discipline comes from the project workspace (AGENTS.md /
+# architect-knowledge). The architect_* tools ship inside this very bundle
+# (@dsh-extra/dsh-architect), so that row is unconditional; dsh-yuyi and
+# dsh-memory rows are optional (appended by the bundled materializer when the
+# packages resolve), aligned with the digital-twin preset. Tail groups
+# (compaction / delegation) mirror the `standard` preset.
+
+- id: persona
+  name: '@deepseek-ai/dsh-persona'
+  config:
+    prefix: >-
+      你是架构师 Agent：承担需求准入、技术方案设计、方案评审与知识蒸馏职能。
+      纪律：任何结论必须有 source；自报不等于完成，落定以主人确认为准；
+      工程事实以代码为准，知识本体以 git 为权威。
+
+# 架构师检查工具随本插件自带（dsh-architect），行可无条件写死：
+# architect_digest / architect_design / architect_review / architect_lint
+- id: tool-architect
+  name: '@dsh-extra/dsh-architect/tools'
+
+- id: tool-jobs
+  name: '@deepseek-ai/dsh-tool-jobs'
+
+- id: skill-filesystem
+  name: '@deepseek-ai/dsh-skill-filesystem'
+
+- id: tool-skill
+  name: '@deepseek-ai/dsh-tool-skill'
+
+- id: tool-goal
+  name: '@deepseek-ai/dsh-tool-goal'
+
+- id: tool-ask-user
+  name: '@deepseek-ai/dsh-tool-ask-user'
+
+- id: tool-todo
+  name: '@deepseek-ai/dsh-tool-todo'
+  config:
+    allowParallelInProgress: true
+
+- id: tool-web
+  name: '@deepseek-ai/dsh-tool-web'
+  config:
+    fetch: false
+    searchTimeoutMs: 60000
+
+# ── 主人侧完整工具：shell 与文件系统（与 standard 预设对齐）──
+- id: tool-bash
+  name: '@deepseek-ai/dsh-tool-bash'
+  disabled: !!js process.platform === 'win32'
+
+- id: tool-pwsh
+  name: '@deepseek-ai/dsh-tool-pwsh'
+  disabled: !!js process.platform !== 'win32'
+
+- id: tool-fs
+  name: '@deepseek-ai/dsh-tool-fs'
+
+- id: tool-fs-search
+  name: '@deepseek-ai/dsh-tool-fs-search'
+  config:
+    sampleOverCapGlobResults: false
+
+# ── 压缩（compaction）：与 standard 预设对齐 ──
+- id: compaction
+  name: cordis:group
+  group: true
+  isolate:
+    compaction: true
+    toolResultPruner: true
+  config:
+    - id: compaction-basic
+      name: '@deepseek-ai/dsh-compaction-basic'
+
+    - id: command-compact
+      name: '@deepseek-ai/dsh-command-compact'
+
+    - id: tool-result-pruner
+      name: '@deepseek-ai/dsh-compaction-tool-result-pruner'
+      config:
+        thresholdChars: 8192
+        headChars: 4096
+        tailChars: 1024
+
+# ── 委派与工作流（delegation & workflows）：与 standard 预设对齐 ──
+- id: delegation
+  name: cordis:group
+  group: true
+  isolate:
+    workflowEngine: true
+  config:
+    - id: tool-subagent-control
+      name: '@deepseek-ai/dsh-tool-subagent-control'
+
+    - id: tool-subagent-list-agents
+      name: '@deepseek-ai/dsh-tool-subagent-control/list-agents'
+
+    - id: tool-subagent
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: subagent
+        backgroundMode: continuable
+
+    - id: tool-subagent-fork
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: fork
+        toolName: subagent_fork
+        backgroundMode: continuable
+
+    - id: workflow-worker-thread
+      name: '@deepseek-ai/dsh-workflow-worker-thread'
+      config:
+        provider: spawn
+
+    - id: tool-workflow
+      name: '@deepseek-ai/dsh-tool-workflow'
+
+# 御驿通信工具（跨架构师协同，目标 5）与共享记忆工具为可选依赖：
+# 行不写死——由本插件自带物化器按安装状态在物化时追加（与 digital-twin 同策略）。

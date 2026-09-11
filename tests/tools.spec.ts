@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { existsSync, mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { apply as toolsApply, name as toolsName } from '../src/tools.ts'
@@ -91,15 +94,33 @@ describe('三个工具', () => {
 })
 
 describe('主入口', () => {
-  it('provide 服务并可用', () => {
-    const provided: Record<string, unknown> = {}
-    indexApply({ provide: (n: string, v: unknown) => { provided[n] = v }, logger: { info: () => {} } } as never)
-    const service = provided['dsh-architect'] as { checkDesign: (md: string) => { total: number }; version: string }
-    expect(service.version).toBe('0.1.0')
-    expect(service.checkDesign('# x').total).toBe(0)
+  it('provide 服务并可用（DSH_HOME 隔离：物化副作用落在临时目录）', () => {
+    const tmpHome = mkdtempSync(join(tmpdir(), 'dsh-architect-home-'))
+    process.env.DSH_HOME = tmpHome
+    try {
+      const provided: Record<string, unknown> = {}
+      indexApply({ provide: (n: string, v: unknown) => { provided[n] = v }, logger: { info: () => {}, warn: () => {} } } as never)
+      const service = provided['dsh-architect'] as { checkDesign: (md: string) => { total: number }; version: string }
+      expect(service.version).toBe('0.3.0')
+      expect(service.checkDesign('# x').total).toBe(0)
+      // 物化副作用应落在隔离 home（architect preset 两文件 + 版本戳）
+      expect(existsSync(join(tmpHome, '.agent-presets', 'architect', 'agent.cordis.yml'))).toBe(true)
+      expect(existsSync(join(tmpHome, '.agent-presets', 'architect', '.materialized-version'))).toBe(true)
+    } finally {
+      rmSync(tmpHome, { recursive: true, force: true })
+      delete process.env.DSH_HOME
+    }
   })
 
-  it('ctx.provide 缺席时告警不抛错', () => {
-    expect(() => indexApply({} as never)).not.toThrow()
+  it('ctx.provide 缺席时告警不抛错（DSH_HOME 隔离）', () => {
+    const tmpHome = mkdtempSync(join(tmpdir(), 'dsh-architect-home-'))
+    process.env.DSH_HOME = tmpHome
+    try {
+      expect(() => indexApply({} as never)).not.toThrow()
+      expect(existsSync(join(tmpHome, '.agent-presets', 'architect', 'agent.cordis.yml'))).toBe(true)
+    } finally {
+      rmSync(tmpHome, { recursive: true, force: true })
+      delete process.env.DSH_HOME
+    }
   })
 })
