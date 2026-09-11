@@ -14,9 +14,9 @@
  * @module @dsh-extra/dsh-architect/tools
  */
 import type { Context } from '@deepseek-ai/cordis'
-import { checkDesign, renderReviewSkeleton, type CoverageResult } from './coverage.ts'
-import { checkDigest, type DigestInput } from './digest.ts'
-import { lintKnowledgeAt } from './kbcollect.ts'
+import { checkDesign, renderReviewSkeleton, type CoverageResult } from 'architect-core'
+import { checkDigest, type DigestInput } from 'architect-core'
+import { lintKnowledgeAt } from 'architect-core'
 
 interface JsonSchemaLike {
   type: 'object'

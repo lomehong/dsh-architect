@@ -13,8 +13,8 @@
  *
  * @module @dsh-extra/dsh-architect
  */
-import { checkDesign, renderReviewSkeleton, sectionOf, countEmptyCells, countUnfilledPlaceholders, DIMENSIONS, type CoverageResult, type DimensionKey } from './coverage.ts'
-import { checkDigest, type DigestInput, type DigestResult } from './digest.ts'
+import { checkDesign, renderReviewSkeleton, sectionOf, countEmptyCells, countUnfilledPlaceholders, DIMENSIONS, type CoverageResult, type DimensionKey } from 'architect-core'
+import { checkDigest, type DigestInput, type DigestResult } from 'architect-core'
 
 export const name = 'dsh-architect'
 export const provide = ['dsh-architect']

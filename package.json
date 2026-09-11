@@ -1,12 +1,13 @@
 {
   "name": "@dsh-extra/dsh-architect",
-  "version": "0.2.0",
-  "description": "架构师 Agent 工具化：需求准入（六项覆盖）、方案覆盖检查与评分（六维度+五问）模型工具 + 知识库结构校验（knowledge-lint）——数字分身套件架构师职能的确定性检查器",
+  "version": "0.3.0",
+  "description": "架构师 Agent 的 dsh 宿主外壳：cordis 插件（服务 + 4 工具 architect_digest/design/review/lint）——校验与评分逻辑在 architect-core（宿主中立核心）",
   "license": "MIT",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
   "exports": {
+    "0": {},
     ".": {
       "types": "./lib/types/index.d.ts",
       "default": "./lib/index.js"
@@ -31,10 +32,6 @@
       "types": "./lib/types/tools.d.ts",
       "default": "./lib/tools.js"
     },
-    "./omp": {
-      "types": "./lib/types/omp.d.ts",
-      "default": "./lib/omp.js"
-    },
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json"
   },
@@ -51,6 +48,9 @@
     "build": "tsc -b tsconfig.json",
     "test": "vitest run",
     "typecheck": "tsc -b tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "architect-core": "file:../packages/architect-core"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1-rc.4"
