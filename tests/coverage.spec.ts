@@ -100,10 +100,10 @@ describe('checkDesign', () => {
     expect(r.dimensions.find(d => d.key === 'requirement')?.score).toBe(7)
   })
 
-  it('五问缺答阻断通过', () => {
+  it('五问缺答阻断通过（严格口径：answered===4 即 fail，G1 回归样本）', () => {
     const md = goodDesign().replace('| 如何验证？ | 静态检查与挂载验证 |', '| 如何验证？ |  |')
     const r = checkDesign(md)
-    expect(r.fiveQuestions.answered).toBeLessThan(5)
+    expect(r.fiveQuestions.answered).toBe(4)
     expect(r.pass).toBe(false)
   })
 })
@@ -120,17 +120,27 @@ describe('解析工具函数', () => {
     expect(countEmptyCells('| a | b |\n|---|---|\n| 1 | |')).toBe(1)
   })
 
-  it('countUnfilledPlaceholders 只认中文占位形态', () => {
+  it('countUnfilledPlaceholders 认中文占位形态，排除泛型/比较/标签', () => {
     expect(countUnfilledPlaceholders('标题 <方案标题> 待填')).toBe(1)
     expect(countUnfilledPlaceholders('泛型 Array<string> 与比较 a<b 与 <b>粗体</b>')).toBe(0)
+  })
+
+  it('countUnfilledPlaceholders 认英文占位词（G5 红样本），不误伤标签与泛型（绿样本）', () => {
+    // 红：明确占位约定词
+    expect(countUnfilledPlaceholders('填写 <TBD> 与 <TODO> 与 <description>')).toBe(3)
+    expect(countUnfilledPlaceholders('路径 <your-name> 与 <file-here>')).toBe(2)
+    // 绿：HTML 标签、泛型、普通英文词不算占位
+    expect(countUnfilledPlaceholders('<b>粗体</b> <div> 与泛型 <string> 及 <document>')).toBe(0)
   })
 })
 
 describe('renderReviewSkeleton', () => {
-  it('骨架含标题、合计与验收纪律提示', () => {
+  it('骨架含标题、合计、严格通过线与验收纪律提示', () => {
     const skeleton = renderReviewSkeleton('测试方案', checkDesign(goodDesign()))
     expect(skeleton).toContain('# 评审结论：测试方案')
     expect(skeleton).toContain('60/60')
     expect(skeleton).toContain('待主人确认')
+    expect(skeleton).toContain('五问全答 5/5') // G1：口径文案与 checkDesign 判定（===5）一致
+    expect(skeleton).not.toContain('≥4')
   })
 })

@@ -85,13 +85,20 @@ export function countEmptyCells(text: string): number {
   return count
 }
 
-/** 统计未填写占位符 `<...>`（模板遗留；排除代码块/行内代码/无内容尖括号）。 */
+/** 统计未填写占位符 `<...>`（模板遗留；排除代码块/行内代码/无内容尖括号/闭合标签/泛型等代码形态）。 */
 export function countUnfilledPlaceholders(text: string): number {
   const noCode = text.replace(/```[\s\S]*?```/g, '').replace(/`[^`]*`/g, '')
-  const matches = noCode.match(/<(?!\/?[a-zA-Z][^\s>]*>)[^<>\n]{1,60}>/g) ?? []
-  // 形如 <方案标题>、<日期>、<谁> 的中文/描述性占位符；排除泛型、比较符等代码形态
-  return matches.filter(m => /[\u4e00-\u9fff]|方案|标题|日期|路径/.test(m)).length
+  // 中文/描述性占位符：形如 <方案标题>、<日期>、<谁>（含中文即视为占位）
+  const descriptive = noCode.match(/<(?!\/?[a-zA-Z][^\s>]*>)[^<>\n]{1,60}>/g) ?? []
+  // 英文占位词形态：形如 <TBD>、<description>、<your-name>——单词型标签但命中占位词白名单
+  // （白名单制避免误伤 HTML 标签 <b>/<div> 与泛型 <string>；单词形且全词命中才计）
+  const wordLike = noCode.match(/<([a-zA-Z][a-zA-Z0-9 _-]*)>/g) ?? []
+  const counted = wordLike.filter(m => EN_PLACEHOLDER_RE.test(m.slice(1, -1).trim()))
+  return descriptive.filter(m => /[\u4e00-\u9fff]|方案|标题|日期|路径/.test(m)).length + counted.length
 }
+
+/** 英文占位词白名单（G5，2026-09-11）：只认明确的占位约定词，不猜泛型/标签。 */
+const EN_PLACEHOLDER_RE = /^(tbd|todo|xxx|fixme|wip|待定|待填|待补|待填写|description|title|date|name|path|reason|owner|status|content|value|version|file|slug|module|command|url|your[ _-][a-z]+|[a-z]+[ _-]here)$/i
 
 /** 检查五问速答表。 */
 export function checkFiveQuestions(md: string): FiveQuestionsCheck {
@@ -184,7 +191,7 @@ export function renderReviewSkeleton(title: string, result: CoverageResult): str
     '|---|---|---|',
     dimRows,
     '',
-    `合计：**${result.total}/${result.max}**（通过线：≥50 且无维度 ≤5 且五问作答 ≥4）`,
+    `合计：**${result.total}/${result.max}**（通过线：≥50 且无维度 ≤5 且五问全答 5/5）`,
     '',
     '## 缺口清单（驳回时由评审者逐条补可执行修改指引）',
     '',
