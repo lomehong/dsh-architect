@@ -119,8 +119,9 @@ for (const dir of KNOWLEDGE_DIRS) {
     if (!ENTRY_EXT_RE.test(name) || name === 'index.md') continue
     const abs = join(dirPath, name)
     const rel = `${dir}/${name}`
-    const fields = parseEntry(readFileSync(abs, 'utf8'), rel)
-    if (fields !== null) entries.push({ path: rel, fields })
+    const content = readFileSync(abs, 'utf8')
+    const fields = parseEntry(content, rel)
+    if (fields !== null) entries.push({ path: rel, fields, body: content })
   }
 }
 

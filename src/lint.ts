@@ -17,6 +17,8 @@
 export interface LintEntry {
   path: string
   fields: Record<string, string>
+  /** 条目正文（R9 设备路径检出用；缺省时不检正文，向后兼容）。 */
+  body?: string
 }
 
 /** review-queue.yaml 的一行（`- file: <相对路径>`）。 */
@@ -109,6 +111,30 @@ export function lintIssue(rule: string, path: string, message: string): LintIssu
   return { rule, path, message }
 }
 
+/**
+ * R9：检出**设备特定路径**（禁止入库；依据 principle/host-neutral-core.md 执行细则 6）。
+ * 命中即 error：同一条知识在不同设备上会因路径差异失效（实践案例：套件根/家目录/checkout 三处）。
+ *
+ * 检出形态（保守白名单式，避免误伤）：
+ * - Windows 盘符路径：`X:\` 或 `X:/`（前后非字母数字，排除 URL 协议如 `https://`）
+ * - Windows 设备前缀：`\\?\`、`\\.\`
+ * - 含用户名的家目录形态：`X:\Users\<名>` / `X:\Documents and Settings\<名>`
+ *
+ * **不检**（有意放行，避免误报）：包含 `://` 的 URL/仓库地址、容器内 POSIX 路径（`/opt`、`/workspace`、
+ * `/home/<user>` 等由镜像约定而非设备决定者）、环境变量名（`$DSH_HOME`）、仓内相对路径。
+ */
+export function devicePathHits(text: string): string[] {
+  const src = String(text ?? '')
+  const hits = new Set<string>()
+  // Windows 盘符路径：前一个字符非字母数字（避免匹配 https:// 之类），后接 \ 或 /
+  for (const m of src.matchAll(/(^|[^A-Za-z0-9])([A-Za-z]:[\\/][^\s`）)】"']*)/g)) hits.add(m[2])
+  // 设备前缀：\\?\ 或 \\?\
+  for (const m of src.matchAll(/(\\\\[?.]\\)[^\s`）)】"']*/g)) hits.add(m[1] + (m[0].slice(m[1].length)))
+  // 含用户名的家目录（Windows）：X:\Users\<name> / X:\Documents and Settings\<name>
+  for (const m of src.matchAll(/[A-Za-z]:[\\/](?:Users|Documents and Settings)[\\/]([^\\/\s`）)】"']+)/gi)) hits.add(m[0])
+  return [...hits]
+}
+
 /** 知识库结构校验（R1~R8）。纯函数：同输入同输出，不落盘、不联网、绝不抛错。 */
 export function lintKnowledge(snapshot: KnowledgeSnapshot, opts: LintOptions = {}): LintResult {
   const errors: LintIssue[] = []
@@ -117,7 +143,7 @@ export function lintKnowledge(snapshot: KnowledgeSnapshot, opts: LintOptions = {
   const warn = (rule: string, path: string, message: string): void => { warnings.push({ rule, path, message }) }
 
   const entries = (Array.isArray(snapshot?.entries) ? snapshot.entries : [])
-    .map(e => ({ path: normPath(e?.path), fields: e?.fields ?? {} }))
+    .map(e => ({ path: normPath(e?.path), fields: e?.fields ?? {}, body: typeof e?.body === 'string' ? e.body : undefined }))
     .filter(e => e.path !== '')
   const byPath = new Map(entries.map(e => [e.path, e]))
 
@@ -136,6 +162,12 @@ export function lintKnowledge(snapshot: KnowledgeSnapshot, opts: LintOptions = {
       const verdict = opts.refExists?.(e.path, ref)
       if (verdict === false) err('R7', e.path, `ref 中仓内路径不存在：${ref}`)
       else if (verdict === undefined) warn('R7', e.path, `ref 含仓内路径，未经存在性核查：${ref}`)
+    }
+    // R9：设备特定路径（frontmatter 值 + 正文）
+    const scanned = `${Object.values(e.fields).join('\n')}\n${e.body ?? ''}`
+    const deviceHits = devicePathHits(scanned)
+    if (deviceHits.length > 0) {
+      err('R9', e.path, `含设备特定路径（禁止入库，见 host-neutral-core 细则 6）：${deviceHits.slice(0, 3).join('、')}${deviceHits.length > 3 ? ` 等 ${deviceHits.length} 处` : ''}`)
     }
   }
 

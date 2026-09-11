@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { lintKnowledge, relativePathCandidates, type KnowledgeSnapshot } from '../src/lint.ts'
+import { devicePathHits, lintKnowledge, relativePathCandidates, type KnowledgeSnapshot } from '../src/lint.ts'
 
 /** 达标快照：1 条已确认 + 1 条待审核（队列与索引齐）。 */
 function goodSnapshot(): KnowledgeSnapshot {
@@ -129,5 +129,34 @@ describe('路径归一与候选提取', () => {
     expect(relativePathCandidates('../../adapters/README.md；与 suite 同构（核心不动）')).toEqual(['../../adapters/README.md'])
     expect(relativePathCandidates('§0/§1.2/§9')).toEqual([])
     expect(relativePathCandidates('docs/designs/2026-09-10-x.md')).toEqual(['docs/designs/2026-09-10-x.md'])
+  })
+})
+
+describe('R9 设备路径检出（禁止入库）', () => {
+  it('红样本：Windows 盘符路径与家目录路径被检出', () => {
+    expect(devicePathHits('路径 E:\\code\\dsh 与 C:/Users/alice/x')).toContain('E:\\code\\dsh')
+    expect(devicePathHits('家目录 C:\\Users\\lome\\AppData\\Local')).toContain('C:\\Users\\lome\\AppData\\Local')
+    expect(devicePathHits('设备前缀 \\\\?\\C:\\very\\long')).not.toEqual([])
+    expect(devicePathHits('盘符带空格 E:\\Development\\Code\\nodejs').length).toBe(1)
+  })
+
+  it('绿样本：URL/仓库地址、容器路径、环境变量、相对路径不误伤', () => {
+    expect(devicePathHits('仓库 github.com/lomehong/digital-architect 与 https://example.com/a')).toEqual([])
+    expect(devicePathHits('容器路径 /opt/architect、/workspace、/home/pi/.omp')).toEqual([])
+    expect(devicePathHits('变量 $DSH_HOME 与相对路径 architect-knowledge/principle/')).toEqual([])
+    expect(devicePathHits('正文引用 见 docs/designs/x.md 与 http://127.0.0.1:3088/dsh-memory/entries')).toEqual([])
+  })
+
+  it('R9 命中即 error 阻断（frontmatter 值或正文任一路径）', () => {
+    const snap = goodSnapshot()
+    snap.entries[0] = { ...snap.entries[0], body: '正文里写了 E:\\code\\nodejs\\dsh 这个设备路径' }
+    const r = lintKnowledge(snap)
+    expect(r.pass).toBe(false)
+    expect(r.errors.some(e => e.rule === 'R9' && e.path === 'meta/a.md')).toBe(true)
+  })
+
+  it('R9 不检缺省 body（向后兼容）', () => {
+    const r = lintKnowledge(goodSnapshot())
+    expect(r.errors.some(e => e.rule === 'R9')).toBe(false)
   })
 })
