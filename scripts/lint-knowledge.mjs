@@ -3,7 +3,7 @@
  * knowledge-lint CLI：对 architect-knowledge/ 知识库做结构校验（母包 P1-1）。
  *
  * 用法：node dsh-architect/scripts/lint-knowledge.mjs [知识库根目录]（默认 architect-knowledge）
- * 依赖：零 npm 依赖，node >= 22；需先在 dsh-architect 内 `npm run build`（import ../lib/*）。
+ * 依赖：node >= 22；需先 `npm ci`（file: 依赖 architect-core 就绪）——核心经包名导入，外壳单独安装亦可解析。
  *
  * 分层（2026-09-11 重构，与两宿主工具共用同一实现，杜绝双采集器漂移）：
  *   kbcollect.collectKnowledgeSnapshot（fs 采集）→ lintKnowledge（纯函数校验）→ 本脚本只做报告与 exit code。
@@ -11,7 +11,7 @@
  *
  * @module @dsh-extra/dsh-architect/lint-cli
  */
-import { lintKnowledgeAt } from '../lib/kbcollect.js'
+import { lintKnowledgeAt } from 'architect-core'
 
 const rootArg = process.argv[2] ?? 'architect-knowledge'
 const result = lintKnowledgeAt(rootArg)
