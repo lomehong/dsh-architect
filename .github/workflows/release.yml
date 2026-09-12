@@ -50,7 +50,7 @@ jobs:
       - name: Pack core tarball
         run: |
           mkdir -p dist
-          npm --prefix packages/architect-core pack --pack-destination dist --ignore-scripts
+          npm pack ./packages/architect-core --pack-destination dist --ignore-scripts
           mv dist/architect-core-*.tgz dist/architect-core-latest.tgz
       - name: Pack shell tarball (rewrite local deps to release URL)
         run: node scripts/pack-release.mjs --out dist
