@@ -32,6 +32,13 @@ jobs:
           npm --prefix packages/architect-core run build
       - name: Install dependencies
         run: npm ci
+      # npm ci 对 file: 依赖的快照不可靠（无 lib）——直接物化 core 产物进 node_modules
+      - name: Materialize core into node_modules
+        run: |
+          rm -rf node_modules/architect-core
+          mkdir -p node_modules/architect-core
+          cp -r packages/architect-core/lib node_modules/architect-core/lib
+          cp packages/architect-core/package.json node_modules/architect-core/package.json
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
