@@ -1,6 +1,6 @@
 {
   "name": "@dsh-extra/dsh-architect",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "架构师 Agent 的 dsh 宿主外壳：cordis 插件（服务 + 4 工具 architect_digest/design/review/lint）——校验与评分逻辑在 architect-core（宿主中立核心）",
   "license": "MIT",
   "type": "module",
@@ -23,10 +23,6 @@
       "types": "./lib/types/lint.d.ts",
       "default": "./lib/lint.js"
     },
-    "./kbcollect": {
-      "types": "./lib/types/kbcollect.d.ts",
-      "default": "./lib/kbcollect.js"
-    },
     "./tools": {
       "types": "./lib/types/tools.d.ts",
       "default": "./lib/tools.js"
@@ -42,6 +38,11 @@
   "dsh": {
     "bundle": {
       "patch": "cordis.patch.yml"
+    },
+    "releaseAudit": {
+      "require": [
+        "presets/"
+      ]
     }
   },
   "scripts": {

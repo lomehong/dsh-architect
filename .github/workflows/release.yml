@@ -1,0 +1,42 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write # 创建 GitHub Release 并上传 tarball
+
+# 纯 GitHub 分发（对齐套件 dsh-ledger 惯例）：tag 一推 -> 构建 + 测试 + 双 tarball 挂 Release。
+# 双资产：dsh-architect-latest.tgz（插件外壳，本地依赖已重写为 core 的 latest URL）
+#        architect-core-latest.tgz（大脑仓核心，独立发版热更新）
+# 安装：profile dependencies 指向 /releases/latest/download/<name>-latest.tgz?release=<tag>
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install dependencies
+        run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - name: Build core (file: dependency)
+        run: npm --prefix packages/architect-core run build
+      - run: npm run build
+      - name: Pack core tarball
+        run: |
+          mkdir -p dist
+          npm --prefix packages/architect-core pack --pack-destination dist --ignore-scripts
+          mv dist/architect-core-*.tgz dist/architect-core-latest.tgz
+      - name: Pack shell tarball (rewrite local deps to release URL)
+        run: node scripts/pack-release.mjs --out dist
+      - name: Publish gate (exports/dependencies structure audit)
+        run: node scripts/check-publish.mjs dist/dsh-architect-latest.tgz dist/architect-core-latest.tgz
+      - name: Audit pack contents
+        run: node scripts/audit-pack.mjs dist/dsh-architect-latest.tgz --tag "${GITHUB_REF_NAME}"
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: 'dist/*.tgz'
