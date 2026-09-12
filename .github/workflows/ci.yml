@@ -24,11 +24,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+      # file: 依赖在 npm ci 时被快照（symlink 或拷贝）——core 的 lib 必须先于 npm ci 生成，
+      # 否则快照里没有 lib，typecheck/build 链式失败（npm 11 默认不跑 prepare）
+      - name: Build core (before install snapshot)
+        run: |
+          npm --prefix packages/architect-core install --no-audit --no-fund
+          npm --prefix packages/architect-core run build
       - name: Install dependencies
         run: npm ci
-      # file: 依赖以 symlink 安装且源目录无构建产物——显式构建 core（npm 11 默认不跑 prepare）
-      - name: Build core
-        run: npx tsc -b packages/architect-core/tsconfig.json
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
