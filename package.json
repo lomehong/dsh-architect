@@ -11,18 +11,6 @@
       "types": "./lib/types/index.d.ts",
       "default": "./lib/index.js"
     },
-    "./coverage": {
-      "types": "./lib/types/coverage.d.ts",
-      "default": "./lib/coverage.js"
-    },
-    "./digest": {
-      "types": "./lib/types/digest.d.ts",
-      "default": "./lib/digest.js"
-    },
-    "./lint": {
-      "types": "./lib/types/lint.d.ts",
-      "default": "./lib/lint.js"
-    },
     "./tools": {
       "types": "./lib/types/tools.d.ts",
       "default": "./lib/tools.js"
