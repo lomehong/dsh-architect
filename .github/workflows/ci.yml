@@ -19,8 +19,8 @@ jobs:
           path: brain
       - name: Link core dependency
         run: |
-          mkdir -p "$GITHUB_WORKSPACE/../packages"
-          ln -s "$GITHUB_WORKSPACE/brain/packages/architect-core" "$GITHUB_WORKSPACE/../packages/architect-core"
+          mkdir -p "$GITHUB_WORKSPACE/packages"
+          ln -s "$GITHUB_WORKSPACE/brain/packages/architect-core" "$GITHUB_WORKSPACE/packages/architect-core"
       - uses: actions/setup-node@v4
         with:
           node-version: 24
