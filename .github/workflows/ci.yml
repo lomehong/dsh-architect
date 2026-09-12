@@ -10,13 +10,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # file:../packages/architect-core 依赖大脑总仓（digital-architect，私有）——
+      # 用 BRAIN_PAT secret（同 owner PAT）clone 到约定的兄弟路径
+      - uses: actions/checkout@v4
+        with:
+          repository: lomehong/digital-architect
+          token: ${{ secrets.BRAIN_PAT }}
+          path: brain
+      - name: Link core dependency
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/../packages"
+          ln -s "$GITHUB_WORKSPACE/brain/packages/architect-core" "$GITHUB_WORKSPACE/../packages/architect-core"
       - uses: actions/setup-node@v4
         with:
           node-version: 24
       - name: Install dependencies
         run: npm ci
-      # file: 依赖（architect-core）以 symlink 安装且源目录无构建产物；
-      # 必须先显式构建 core，外壳的 typecheck/build 才能解析其类型（npm 11 默认不跑 prepare）
+      # file: 依赖以 symlink 安装且源目录无构建产物——显式构建 core（npm 11 默认不跑 prepare）
       - name: Build core
         run: npx tsc -b packages/architect-core/tsconfig.json
       - run: npm run typecheck
