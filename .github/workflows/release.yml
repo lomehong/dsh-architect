@@ -21,10 +21,11 @@ jobs:
           node-version: 24
       - name: Install dependencies
         run: npm ci
+      # file: 依赖（architect-core）以 symlink 安装且源目录无构建产物——先显式构建 core
+      - name: Build core
+        run: npx tsc -b packages/architect-core/tsconfig.json
       - run: npm run typecheck
       - run: npm test
-      - name: Build core (file: dependency)
-        run: npm --prefix packages/architect-core run build
       - run: npm run build
       - name: Pack core tarball
         run: |

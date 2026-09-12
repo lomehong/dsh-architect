@@ -15,6 +15,10 @@ jobs:
           node-version: 24
       - name: Install dependencies
         run: npm ci
+      # file: 依赖（architect-core）以 symlink 安装且源目录无构建产物；
+      # 必须先显式构建 core，外壳的 typecheck/build 才能解析其类型（npm 11 默认不跑 prepare）
+      - name: Build core
+        run: npx tsc -b packages/architect-core/tsconfig.json
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
