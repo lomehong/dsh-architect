@@ -34,7 +34,8 @@
     }
   },
   "scripts": {
-    "build": "tsc -b tsconfig.json",
+    "build": "tsc -b tsconfig.json && node scripts/materialize-core.mjs",
+    "materialize:check": "node scripts/materialize-core.mjs --check",
     "test": "vitest run tests",
     "typecheck": "tsc -b tsconfig.json --noEmit"
   },

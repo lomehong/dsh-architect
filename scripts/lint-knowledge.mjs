@@ -13,10 +13,16 @@
  */
 import { lintKnowledgeAt } from 'architect-core'
 
-const rootArg = process.argv[2] ?? 'architect-knowledge'
-const result = lintKnowledgeAt(rootArg)
+// 显式覆盖：--isolated / --full；env LINT_KB_ISOLATED=1/0（缺省自动探测：.snapshot 标记或正向证据）
+const args = process.argv.slice(2)
+const rootArg = args.find(a => !a.startsWith('--')) ?? 'architect-knowledge'
+const flagIso = args.includes('--isolated') ? true : args.includes('--full') ? false : undefined
+const envIso = process.env.LINT_KB_ISOLATED
+const isolated = flagIso ?? (envIso === '1' ? true : envIso === '0' ? false : undefined)
+const result = lintKnowledgeAt(rootArg, process.cwd(), { isolated })
 
 console.log(`knowledge-lint｜root=${result.root}`)
+if (result.isolated) console.log(`⚠️ 隔离上下文（快照/活仓挂载）：KB 外 ref 降 warning，备案计数见下；如需严格请 --full`)
 const s = result.stats
 console.log(`条目 ${s.entries}（已确认 ${s.confirmed} / 待审核 ${s.pending}）｜错误 ${result.errors.length}｜警告 ${result.warnings.length}`)
 for (const i of result.errors) console.log(`  ⛔ [${i.rule}] ${i.path}：${i.message}`)
