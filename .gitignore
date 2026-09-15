@@ -1,3 +1,6 @@
 node_modules/
 lib/
 *.tsbuildinfo
+# 构建产物与构建期物化（2026-09-15 补：dist/=esbuild 产物；packages/=构建期物化 core 真实拷贝——均不入库，先例见 30cd70f 卷稿整改）
+dist/
+packages/
