@@ -1,30 +1,35 @@
 #!/usr/bin/env node
 /**
- * pack-release.mjs — 发布打包：npm pack 后把本地路径依赖重写为 release URL。
+ * pack-release.mjs — 发布打包：外壳**自包含**（vendor 大脑核心进包）。
  *
- * 动机：dsh-architect 依赖大脑仓核心 `architect-core: file:../packages/architect-core`。
- * file: 依赖进入发布 tarball 后，安装方（pnpm/npm）按 tarball 相对路径解析必然失败。
- * 本脚本在 npm pack 之后、上传之前，把 tarball 内 package.json 的
- * `dependencies["architect-core"]` 重写为同 release 的稳定资产 URL：
+ * 动机（2026-09-15 三层故障根治）：此前把本地依赖 architect-core 重写为同仓
+ * release URL——URL 形态的「子依赖」被 pnpm 12 默认供应链防护
+ * blockExoticSubdeps 拦截（顶层 URL 放行、子依赖一律拒绝），消费方 profile
+ * 必须关闭防护才能安装；弱网+镜像链路下曾连环失败（2026-09-15 事故）。
  *
- *   https://github.com/lomehong/dsh-architect/releases/latest/download/architect-core-latest.tgz
+ * 根治：打包时把 architect-core 的构建产物 **vendor 进外壳 tarball**
+ * （core/**），lib 内引用重写为包内相对路径，并从依赖声明移除——
+ * 外壳 tarball 自包含，blockExoticSubdeps 防护回归完整。
  *
- * （releases/latest/download 永远指向最新 release 的同名资产——core 单独发版后，
- *   安装方重装即升级，外壳无需重发。）重写用 Node JSON.parse/stringify，
- * 严禁 PowerShell ConvertTo-Json（exports 伪键事故，2026-09-11）。
+ * 取舍：核心不再经 URL 独立热更新——核心变更需重发外壳版本
+ * （architect-core-latest.tgz 资产仍照常发布，供独立消费与追溯）。
+ * 重写用 Node JSON.parse/stringify，严禁 PowerShell ConvertTo-Json
+ * （exports 伪键事故，2026-09-11）。
  *
  * 用法：node scripts/pack-release.mjs --out <dir>
- * 产物：<out>/dsh-architect-latest.tgz（dependencies 已重写、结构已自检）
+ * 产物：<out>/dsh-architect-latest.tgz（自包含、无 URL/file 子依赖）
  *
  * @module scripts/pack-release
  */
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, dirname } from 'node:path'
+import { join, dirname, relative, resolve } from 'node:path'
 
-const CORE_URL = 'https://github.com/lomehong/dsh-architect/releases/latest/download/architect-core-latest.tgz'
 const OUT_NAME = 'dsh-architect-latest.tgz'
+// core lib 双路径回退：CI=仓库内 symlink（release.yml Link 步骤）；本地=父仓 packages/
+const CORE_LIB_CANDIDATES = ['packages/architect-core/lib', '../packages/architect-core/lib']
+const CORE_LIB = CORE_LIB_CANDIDATES.map((p) => resolve(p)).find((p) => existsSync(p))
 
 const argv = process.argv.slice(2)
 const outIdx = argv.indexOf('--out')
@@ -42,21 +47,41 @@ try {
   const tgzPath = join(stage, tgz)
   execFileSync('tar', ['-xzf', tgzPath, '-C', stage])
 
-  // 重写本地路径依赖 → release URL（Node 原生 JSON，禁 PS）
+  // ── vendor：核心构建产物进包（core/**）──
+  if (!existsSync(CORE_LIB)) throw new Error(`${CORE_LIB} 缺失——先构建核心（npm --prefix packages/architect-core run build）`)
+  cpSync(CORE_LIB, join(stage, 'package', 'core'), { recursive: true })
+
+  // 依赖声明：移除 architect-core（已 vendor=自包含）；其余 file:/link: 仍拒绝（兜底守卫）
   const manifestPath = join(stage, 'package', 'package.json')
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
-  let rewritten = 0
+  if (manifest.dependencies) delete manifest.dependencies['architect-core']
   for (const field of ['dependencies', 'peerDependencies', 'optionalDependencies']) {
     const deps = manifest[field]
     if (!deps) continue
     for (const [name, spec] of Object.entries(deps)) {
       if (typeof spec === 'string' && (spec.startsWith('file:') || spec.startsWith('link:'))) {
-        if (name === 'architect-core') { deps[name] = CORE_URL; rewritten++ }
-        else throw new Error(`未配置重写规则的本地路径依赖：${field}["${name}"] = ${spec}（请在 pack-release.mjs 登记 URL）`)
+        throw new Error(`未 vendor 的本地路径依赖：${field}["${name}"] = ${spec}（仅 architect-core 已 vendor；其余请登记处理）`)
       }
     }
   }
   writeFileSync(manifestPath, JSON.stringify(manifest, null, 2))
+
+  // 引用重写：lib 内所有 .js/.d.ts 的 'architect-core' → 包内相对路径
+  //（lib 根文件 → ./core/index.js；lib/types/* → ../../core/index.js，按文件深度计算）
+  const rewriteImports = (dir) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name)
+      if (entry.isDirectory()) { rewriteImports(full); continue }
+      if (!entry.name.endsWith('.js') && !entry.name.endsWith('.d.ts')) continue
+      const text = readFileSync(full, 'utf8')
+      if (!text.includes("'architect-core'") && !text.includes('"architect-core"')) continue
+      const rel = relative(dirname(full), join(stage, 'package', 'core', 'index.js')).split('\\').join('/')
+      const spec = rel.startsWith('.') ? rel : './' + rel
+      const next = text.replaceAll("'architect-core'", `'${spec}'`).replaceAll('"architect-core"', `"${spec}"`)
+      writeFileSync(full, next, 'utf8')
+    }
+  }
+  rewriteImports(join(stage, 'package', 'lib'))
 
   // 结构自检（与 check-publish 同口径，打包即验证）
   const keys = Object.keys(manifest.exports ?? {})
@@ -65,9 +90,10 @@ try {
   }
   if (!existsSync(join(stage, 'package', 'lib', 'index.js'))) throw new Error('lib/index.js 缺失——先 npm run build')
 
-  // 重打包为稳定资产名
+  // 重打包为稳定资产名（先确保输出目录存在——tar 不建父目录）
+  mkdirSync(outDir, { recursive: true })
   execFileSync('tar', ['-czf', join(outDir, OUT_NAME), '-C', stage, 'package'])
-  console.log(`[pack-release] ${OUT_NAME} 就绪（重写 ${rewritten} 个本地依赖 → release URL；exports 键 ${keys.length} 个）`)
+  console.log(`[pack-release] ${OUT_NAME} 就绪（vendor 模式：core 已进包、依赖已自包含；exports 键 ${keys.length} 个）`)
 } finally {
   rmSync(stage, { recursive: true, force: true })
 }
