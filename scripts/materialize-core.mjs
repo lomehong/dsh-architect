@@ -18,7 +18,20 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const shellRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
-const coreSrc = join(shellRoot, '..', 'packages', 'architect-core')
+// core 源布局回退（2026-09-15 CI 修复）：
+//   ① CI workspace symlink（ci/release.yml 的 Link 步骤：<repoRoot>/packages/architect-core → brain/...）
+//   ② CI brain checkout 直连（./brain/packages/architect-core）
+//   ③ 本地父仓 packages 布局（../packages/architect-core）
+const coreSrcCandidates = [
+  join(shellRoot, 'packages', 'architect-core'),
+  join(shellRoot, 'brain', 'packages', 'architect-core'),
+  join(shellRoot, '..', 'packages', 'architect-core'),
+]
+const coreSrc = coreSrcCandidates.map((p) => join(p)).find((p) => existsSync(join(p, 'lib')))
+if (!coreSrc) {
+  console.error(`✗ core 源未找到（候选均已探测：${coreSrcCandidates.join(' , ')}）——先构建 core 的 lib`)
+  process.exit(1)
+}
 const dst = join(shellRoot, 'node_modules', 'architect-core')
 const stampPath = join(dst, '.materialized-core.json')
 
