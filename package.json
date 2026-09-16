@@ -1,6 +1,6 @@
 {
   "name": "@dsh-extra/dsh-architect",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "架构师 Agent 的 dsh 宿主外壳：cordis 插件（服务 + 4 工具 architect_digest/design/review/lint）——校验与评分逻辑在 architect-core（宿主中立核心）",
   "license": "MIT",
   "type": "module",

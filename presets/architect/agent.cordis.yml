@@ -48,6 +48,10 @@
     fetch: false
     searchTimeoutMs: 60000
 
+# 交付物呈现（0.1.6 shipped standard 基线新增行；与 standard/digital-twin 对齐）
+- id: present
+  name: '@deepseek-ai/dsh-tool-present'
+
 # ── 主人侧完整工具：shell 与文件系统（与 standard 预设对齐）──
 - id: tool-bash
   name: '@deepseek-ai/dsh-tool-bash'
@@ -113,8 +117,8 @@
         toolName: subagent_fork
         backgroundMode: continuable
 
-    - id: workflow-worker-thread
-      name: '@deepseek-ai/dsh-workflow-worker-thread'
+    - id: workflow-ptc
+      name: '@deepseek-ai/dsh-workflow-ptc'
       config:
         provider: spawn
 

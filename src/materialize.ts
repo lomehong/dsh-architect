@@ -15,7 +15,10 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 export const PRESET_ID = 'architect'
-export const PRESET_VERSION = '1'
+/** 模板/追加行变更时必须 bump：物化器按此版本戳决定是否重写已物化副本。
+ *  v2（2026-09-16）：workflow-worker-thread → workflow-ptc（dsh 0.1.6 移除旧引擎包）+
+ *  补 present 行。不 bump 的话旧戳会"碰巧"挡住坏模板回写，也会挡住好模板下发。 */
+export const PRESET_VERSION = '2'
 export const PRESET_FILES = ['agent.cordis.yml', 'preset.yml'] as const
 
 /** 可选工具行：探测到包在位才追加（写死会让未装机上的整份 preset 无法挂载）。 */
@@ -85,13 +88,28 @@ export function renderOptionalRows(rows: OptionalRow[]): string {
   return '\n' + rows.map(r => `# 可选工具行（物化时探测到 ${r.packageRoot} 在位，自动追加）\n- id: ${r.id}\n  name: '${r.name}'`).join('\n') + '\n'
 }
 
-/** node_modules 布局探测：$DSH_HOME/node_modules 与 $DSH_HOME/profiles 下各 profile 的 node_modules 目录。 */
-export function detectOptionalPackages(dshHome: string, exists: (p: string) => boolean): Record<string, boolean> {
+/** 从 bundle 安装位置推断当前 profile 名（…/profiles/web/node_modules/@dsh-extra/dsh-architect → 'web'）。
+ *  开发态直跑（不在任何 profile 下）时返回 undefined。 */
+export function currentProfileFromPackageDir(packageDir: string): string | undefined {
+  const m = /profiles\/([^/]+)\/node_modules(?:\/|$)/.exec(normPath(packageDir))
+  return m?.[1]
+}
+
+/** node_modules 布局探测：$DSH_HOME/node_modules 与当前 profile 的 node_modules。
+ *  2026-09-16 事故教训：早期版本扫描 profiles 下**所有** profile 的 node_modules，
+ *  会把只在别的 profile（如 web）安装的包探测为"在位"并写进可选行——挂载时本
+ *  profile 的引擎解析不到该包，整份预设被判不可挂载。故锁定当前 profile；
+ *  推断不出（开发态直跑）时才退回全扫描。 */
+export function detectOptionalPackages(dshHome: string, exists: (p: string) => boolean, packageDir?: string): Record<string, boolean> {
   const detected: Record<string, boolean> = {}
   const bases = [join(dshHome, 'node_modules')]
   const profilesDir = join(dshHome, 'profiles')
+  const current = packageDir ? currentProfileFromPackageDir(packageDir) : undefined
   if (exists(profilesDir)) {
-    for (const p of existsSafeRead(profilesDir)) bases.push(join(profilesDir, p, 'node_modules'))
+    for (const p of existsSafeRead(profilesDir)) {
+      if (current !== undefined && p !== current) continue
+      bases.push(join(profilesDir, p, 'node_modules'))
+    }
   }
   for (const row of OPTIONAL_ROWS) {
     detected[row.packageRoot] = bases.some(base => exists(join(base, row.packageRoot)))
@@ -107,7 +125,7 @@ function existsSafeRead(dir: string): string[] {
 export function materializeAt(dshHome: string, packageDir: string, onWarn?: (message: string) => void): boolean {
   try {
     const exists = (p: string) => existsSync(p)
-    const detected = detectOptionalPackages(dshHome, exists)
+    const detected = detectOptionalPackages(dshHome, exists, packageDir)
     const plan = planMaterialize({
       dshHome,
       packageDir,
