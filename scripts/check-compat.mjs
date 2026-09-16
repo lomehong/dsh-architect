@@ -35,8 +35,13 @@ function argOf(flag, fallback) {
   const i = process.argv.indexOf(flag)
   return i >= 0 && process.argv[i + 1] ? process.argv[i + 1] : fallback
 }
-const desktopHome = join(process.env.LOCALAPPDATA ?? '', 'dsh-desktop-app-data', 'home')
-const HOME = resolve(argOf('--home', process.env.DSH_HOME ?? (existsSync(desktopHome) ? desktopHome : join(process.env.USERPROFILE ?? '.', '.dsh'))))
+// Desktop home layouts: newer releases use dsh-desktop\home, legacy used
+// dsh-desktop-app-data\home. Probe both before falling back to ~/.dsh.
+const desktopHomes = [
+  join(process.env.LOCALAPPDATA ?? '', 'dsh-desktop', 'home'),
+  join(process.env.LOCALAPPDATA ?? '', 'dsh-desktop-app-data', 'home'),
+]
+const HOME = resolve(argOf('--home', process.env.DSH_HOME ?? (desktopHomes.find((p) => existsSync(p)) ?? join(process.env.USERPROFILE ?? '.', '.dsh'))))
 const PROFILE = argOf('--profile', process.env.DSH_PROFILE ?? 'web')
 const REPO = resolve(argOf('--repo', dirname(scriptDir)))
 
